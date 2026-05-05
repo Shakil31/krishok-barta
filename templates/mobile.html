@@ -2,33 +2,75 @@
 {% set title = "কৃষক বার্তা মোবাইল অ্যাপ" %}
 
 {% block content %}
-<section class="phone-wrap">
-    <div class="phone">
-        <p class="greeting">আস্সালামু আলাইকুম</p>
-        <h1>প্রশ্ন করুন</h1>
+<section class="app-shell">
+    <div class="mobile-app">
+        <header class="app-hero">
+            <div class="app-status">
+                <span>কৃষক বার্তা</span>
+                <strong>লাইভ সহকারী</strong>
+            </div>
 
-        <form data-voice-form>
-            <label for="mobile-topic">বিষয়</label>
-            <select id="mobile-topic" name="topic">
-                {% for key, value in topics.items() %}
-                <option value="{{ key }}">{{ value }}</option>
-                {% endfor %}
-            </select>
+            <div class="farm-scene" aria-hidden="true">
+                <span class="sun"></span>
+                <span class="cloud cloud-one"></span>
+                <span class="cloud cloud-two"></span>
+                <span class="field-row row-one"></span>
+                <span class="field-row row-two"></span>
+                <span class="field-row row-three"></span>
+            </div>
 
-            <button class="mic" type="button" data-record-button>
-                <span>●</span>
-                <strong data-record-label>মাইক চাপুন</strong>
+            <p class="greeting">আসসালামু আলাইকুম</p>
+            <h1>কী জানতে চান?</h1>
+            <p class="app-subtitle">কথা বলুন, কৃষি পরামর্শ শুনুন।</p>
+        </header>
+
+        <form class="voice-card" data-voice-form>
+            <input type="hidden" id="mobile-topic" name="topic" value="weather">
+
+            <fieldset class="topic-picker" aria-label="বিষয় নির্বাচন">
+                <legend>বিষয় নির্বাচন</legend>
+                <div class="topic-scroll">
+                    {% for key, value in topics.items() %}
+                    <button class="topic-chip{% if loop.first %} is-active{% endif %}" type="button" data-topic="{{ key }}">
+                        {{ value }}
+                    </button>
+                    {% endfor %}
+                </div>
+            </fieldset>
+
+            <div class="listen-panel">
+                <button class="mic" type="button" data-record-button aria-label="রেকর্ড শুরু করুন">
+                    <span class="mic-rings"></span>
+                    <span class="mic-icon"></span>
+                    <strong data-record-label>মাইক চাপুন</strong>
+                </button>
+
+                <div class="voice-wave" aria-hidden="true">
+                    <span></span><span></span><span></span><span></span><span></span>
+                </div>
+            </div>
+
+            <label for="mobile-question">লিখেও প্রশ্ন করা যাবে</label>
+            <textarea id="mobile-question" name="question" placeholder="যেমন: ধানের পাতায় দাগ হয়েছে, কী করব?"></textarea>
+
+            <button class="button primary full send-button" type="submit">
+                উত্তর শুনুন
             </button>
-
-            <textarea name="question" placeholder="অথবা প্রশ্ন লিখুন"></textarea>
-            <button class="button primary full" type="submit">পাঠান</button>
         </form>
 
-        <section class="result compact" data-result hidden>
+        <section class="result answer-sheet compact" data-result hidden>
+            <span class="sheet-handle"></span>
+            <h2>কৃষক বার্তার উত্তর</h2>
             <p class="question" data-question></p>
             <p class="answer" data-answer></p>
             <audio controls autoplay data-audio></audio>
         </section>
+
+        <nav class="bottom-tabs" aria-label="মোবাইল নেভিগেশন">
+            <a class="is-active" href="/mobile">ভয়েস</a>
+            <a href="/">ওয়েব</a>
+            <a href="/dashboard">রেকর্ড</a>
+        </nav>
     </div>
 </section>
 {% endblock %}

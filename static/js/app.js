@@ -1,6 +1,8 @@
 const resultPanels = document.querySelectorAll("[data-result]");
 
-function showResult(data) {
+function showResult(data, options = {}) {
+    let answerAudio = null;
+
     resultPanels.forEach((panel) => {
         panel.hidden = false;
         const question = panel.querySelector("[data-question]");
@@ -10,18 +12,30 @@ function showResult(data) {
         if (question) question.textContent = data.question ? `প্রশ্ন: ${data.question}` : "";
         if (answer) answer.textContent = data.answer || data.error || "";
         if (audio && data.audio_url) {
+            answerAudio = audio;
             audio.src = data.audio_url;
-            audio.play().catch(() => {});
+            audio.onended = options.onAudioEnded || null;
+            audio.play().catch(() => {
+                if (options.onAudioEnded) options.onAudioEnded();
+            });
+        } else if (options.onAudioEnded) {
+            window.setTimeout(options.onAudioEnded, 900);
         }
 
         panel.scrollIntoView({ behavior: "smooth", block: "nearest" });
     });
+
+    return answerAudio;
 }
 
-async function ask(form, audioBlob) {
+async function ask(form, audioBlob, options = {}) {
     const button = form.querySelector("button[type='submit']");
     const original = button ? button.textContent : "";
     const formData = new FormData(form);
+
+    if (options.questionText) {
+        formData.set("question", options.questionText);
+    }
 
     if (audioBlob) {
         formData.append("audio", audioBlob, "question.webm");
@@ -40,12 +54,18 @@ async function ask(form, audioBlob) {
         });
         const data = await response.json();
         if (!response.ok) throw new Error(data.error || "Request failed");
-        showResult(data);
-        form.reset();
-        resetTopicPicker(form);
+        showResult(data, { onAudioEnded: options.onAudioEnded });
+        if (!options.keepForm) {
+            form.reset();
+            resetTopicPicker(form);
+        }
         loadStatus();
+        return data;
     } catch (error) {
-        showResult({ answer: error.message || "সমস্যা হয়েছে। আবার চেষ্টা করুন।" });
+        showResult({ answer: error.message || "সমস্যা হয়েছে। আবার চেষ্টা করুন।" }, {
+            onAudioEnded: options.onAudioEnded,
+        });
+        return null;
     } finally {
         form.classList.remove("is-busy");
         if (button) {
@@ -116,18 +136,95 @@ const voiceForm = document.querySelector("[data-voice-form]");
 if (voiceForm) {
     const recordButton = voiceForm.querySelector("[data-record-button]");
     const recordLabel = voiceForm.querySelector("[data-record-label]");
+    const questionInput = voiceForm.querySelector("textarea[name='question']");
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    let conversationOn = false;
+    let recognition = null;
+    let recognitionBusy = false;
     let recorder = null;
     let chunks = [];
     let latestAudio = null;
     let activeStream = null;
 
-    function setRecordingState(isRecording) {
-        voiceForm.classList.toggle("is-recording-form", isRecording);
-        recordButton.classList.toggle("is-recording", isRecording);
-        recordLabel.textContent = isRecording ? "থামুন" : "মাইক চাপুন";
+    function setListeningState(isListening, label = "মাইক চাপুন") {
+        voiceForm.classList.toggle("is-recording-form", isListening);
+        recordButton.classList.toggle("is-recording", isListening);
+        recordLabel.textContent = label;
     }
 
-    async function startRecording() {
+    function stopConversation() {
+        conversationOn = false;
+        if (recognition) {
+            recognition.onend = null;
+            recognition.stop();
+        }
+        setListeningState(false, "মাইক চাপুন");
+    }
+
+    function startListening() {
+        if (!conversationOn || recognitionBusy || !recognition) return;
+        recognitionBusy = true;
+        setListeningState(true, "শুনছি...");
+        recognition.start();
+    }
+
+    async function handleRecognizedSpeech(transcript) {
+        const question = transcript.trim();
+        recognitionBusy = false;
+
+        if (!question) {
+            if (conversationOn) startListening();
+            return;
+        }
+
+        if (questionInput) questionInput.value = question;
+        setListeningState(false, "উত্তর দিচ্ছি");
+
+        await ask(voiceForm, null, {
+            keepForm: true,
+            questionText: question,
+            onAudioEnded: () => {
+                if (conversationOn) {
+                    window.setTimeout(startListening, 500);
+                }
+            },
+        });
+    }
+
+    function setupSpeechConversation() {
+        if (!SpeechRecognition) return false;
+
+        recognition = new SpeechRecognition();
+        recognition.lang = "bn-BD";
+        recognition.continuous = false;
+        recognition.interimResults = false;
+        recognition.maxAlternatives = 1;
+
+        recognition.onresult = (event) => {
+            const result = event.results[event.results.length - 1];
+            const transcript = result && result[0] ? result[0].transcript : "";
+            handleRecognizedSpeech(transcript);
+        };
+
+        recognition.onerror = () => {
+            recognitionBusy = false;
+            if (conversationOn) {
+                setListeningState(false, "আবার বলুন");
+                window.setTimeout(startListening, 900);
+            }
+        };
+
+        recognition.onend = () => {
+            recognitionBusy = false;
+            if (conversationOn && !voiceForm.classList.contains("is-busy")) {
+                window.setTimeout(startListening, 500);
+            }
+        };
+
+        return true;
+    }
+
+    async function startRecordingFallback() {
         activeStream = await navigator.mediaDevices.getUserMedia({ audio: true });
         chunks = [];
         latestAudio = null;
@@ -138,10 +235,10 @@ if (voiceForm) {
         });
 
         recorder.start();
-        setRecordingState(true);
+        setListeningState(true, "থামুন");
     }
 
-    function stopRecording() {
+    function stopRecordingFallback() {
         return new Promise((resolve) => {
             if (!recorder || recorder.state !== "recording") {
                 resolve(latestAudio);
@@ -154,8 +251,7 @@ if (voiceForm) {
                     activeStream.getTracks().forEach((track) => track.stop());
                 }
                 activeStream = null;
-                setRecordingState(false);
-                recordLabel.textContent = "পাঠানো হচ্ছে";
+                setListeningState(false, "পাঠানো হচ্ছে");
                 resolve(latestAudio);
             }, { once: true });
 
@@ -163,9 +259,22 @@ if (voiceForm) {
         });
     }
 
+    const speechModeReady = setupSpeechConversation();
+
     recordButton.addEventListener("click", async () => {
+        if (speechModeReady) {
+            if (conversationOn) {
+                stopConversation();
+                return;
+            }
+
+            conversationOn = true;
+            startListening();
+            return;
+        }
+
         if (recorder && recorder.state === "recording") {
-            const audioBlob = await stopRecording();
+            const audioBlob = await stopRecordingFallback();
             await ask(voiceForm, audioBlob);
             latestAudio = null;
             recordLabel.textContent = "মাইক চাপুন";
@@ -173,7 +282,7 @@ if (voiceForm) {
         }
 
         try {
-            await startRecording();
+            await startRecordingFallback();
         } catch {
             showResult({ answer: "মাইক্রোফোন permission দিন।" });
         }
@@ -181,8 +290,9 @@ if (voiceForm) {
 
     voiceForm.addEventListener("submit", async (event) => {
         event.preventDefault();
+        if (conversationOn) stopConversation();
         const audioBlob = recorder && recorder.state === "recording"
-            ? await stopRecording()
+            ? await stopRecordingFallback()
             : latestAudio;
         await ask(voiceForm, audioBlob);
         latestAudio = null;

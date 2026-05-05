@@ -119,39 +119,72 @@ if (voiceForm) {
     let recorder = null;
     let chunks = [];
     let latestAudio = null;
+    let activeStream = null;
+
+    function setRecordingState(isRecording) {
+        voiceForm.classList.toggle("is-recording-form", isRecording);
+        recordButton.classList.toggle("is-recording", isRecording);
+        recordLabel.textContent = isRecording ? "থামুন" : "মাইক চাপুন";
+    }
+
+    async function startRecording() {
+        activeStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        chunks = [];
+        latestAudio = null;
+        recorder = new MediaRecorder(activeStream);
+
+        recorder.addEventListener("dataavailable", (event) => {
+            if (event.data.size > 0) chunks.push(event.data);
+        });
+
+        recorder.start();
+        setRecordingState(true);
+    }
+
+    function stopRecording() {
+        return new Promise((resolve) => {
+            if (!recorder || recorder.state !== "recording") {
+                resolve(latestAudio);
+                return;
+            }
+
+            recorder.addEventListener("stop", () => {
+                latestAudio = new Blob(chunks, { type: "audio/webm" });
+                if (activeStream) {
+                    activeStream.getTracks().forEach((track) => track.stop());
+                }
+                activeStream = null;
+                setRecordingState(false);
+                recordLabel.textContent = "পাঠানো হচ্ছে";
+                resolve(latestAudio);
+            }, { once: true });
+
+            recorder.stop();
+        });
+    }
 
     recordButton.addEventListener("click", async () => {
         if (recorder && recorder.state === "recording") {
-            recorder.stop();
+            const audioBlob = await stopRecording();
+            await ask(voiceForm, audioBlob);
+            latestAudio = null;
+            recordLabel.textContent = "মাইক চাপুন";
             return;
         }
 
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            chunks = [];
-            recorder = new MediaRecorder(stream);
-            recorder.addEventListener("dataavailable", (event) => {
-                if (event.data.size > 0) chunks.push(event.data);
-            });
-            recorder.addEventListener("stop", () => {
-                latestAudio = new Blob(chunks, { type: "audio/webm" });
-                stream.getTracks().forEach((track) => track.stop());
-                voiceForm.classList.remove("is-recording-form");
-                recordButton.classList.remove("is-recording");
-                recordLabel.textContent = "রেকর্ড হয়েছে";
-            });
-            recorder.start();
-            voiceForm.classList.add("is-recording-form");
-            recordButton.classList.add("is-recording");
-            recordLabel.textContent = "থামুন";
+            await startRecording();
         } catch {
             showResult({ answer: "মাইক্রোফোন permission দিন।" });
         }
     });
 
-    voiceForm.addEventListener("submit", (event) => {
+    voiceForm.addEventListener("submit", async (event) => {
         event.preventDefault();
-        ask(voiceForm, latestAudio);
+        const audioBlob = recorder && recorder.state === "recording"
+            ? await stopRecording()
+            : latestAudio;
+        await ask(voiceForm, audioBlob);
         latestAudio = null;
         recordLabel.textContent = "মাইক চাপুন";
     });

@@ -202,6 +202,8 @@ def ask():
                 uploaded_audio.save(tmp.name)
                 upload_path = tmp.name
             question = transcribe_audio_file(upload_path)
+            if not question:
+                return jsonify({"error": "ভয়েসটি বোঝা যায়নি। একটু কাছে থেকে আবার বলুন অথবা প্রশ্ন লিখুন।"}), 400
 
         if not question:
             return jsonify({"error": "প্রশ্নটি পাওয়া যায়নি। আবার বলুন অথবা লিখুন।"}), 400

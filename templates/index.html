@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% set title = "কৃষক বার্তা" %}
+
+{% block content %}
+<section class="hero">
+    <div>
+        <p class="eyebrow">Voice AI Assistant for Farmers</p>
+        <h1>কৃষক বার্তা</h1>
+        <p class="lead">কৃষক বাংলায় প্রশ্ন করবেন। অ্যাপ বাংলায় কথা বলে সহজ উত্তর দেবে। পড়া বা টাইপ করার দরকার নেই।</p>
+        <div class="actions">
+            <a class="button primary" href="/mobile">মোবাইল অ্যাপ খুলুন</a>
+            <a class="button secondary" href="/dashboard">ড্যাশবোর্ড দেখুন</a>
+        </div>
+    </div>
+
+    <form class="panel" data-ask-form>
+        <h2>দ্রুত পরীক্ষা</h2>
+        <label for="topic">বিষয়</label>
+        <select id="topic" name="topic">
+            {% for key, value in topics.items() %}
+            <option value="{{ key }}">{{ value }}</option>
+            {% endfor %}
+        </select>
+        <label for="question">প্রশ্ন</label>
+        <textarea id="question" name="question" placeholder="যেমন: ধানের পাতায় দাগ হয়েছে, কী করব?"></textarea>
+        <button class="button primary full" type="submit">উত্তর দিন</button>
+    </form>
+</section>
+
+<section class="result" data-result hidden>
+    <h2>উত্তর</h2>
+    <p class="question" data-question></p>
+    <p class="answer" data-answer></p>
+    <audio controls data-audio></audio>
+</section>
+
+<section class="topics">
+    {% for key, value in topics.items() %}
+    <article>
+        <span>{{ loop.index }}</span>
+        <h2>{{ value }}</h2>
+    </article>
+    {% endfor %}
+</section>
+{% endblock %}

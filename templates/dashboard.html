@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% set title = "কৃষক বার্তা ড্যাশবোর্ড" %}
+
+{% block content %}
+<section class="dashboard">
+    <p class="eyebrow">Admin Dashboard</p>
+    <h1>ড্যাশবোর্ড</h1>
+
+    <div class="cards">
+        <article><span>Status</span><strong data-status="running">Checking</strong></article>
+        <article><span>Gemini Key</span><strong data-status="gemini_key">Checking</strong></article>
+        <article><span>Gemini Model</span><strong data-status="gemini_model">Checking</strong></article>
+        <article><span>History</span><strong data-status="history_count">0</strong></article>
+    </div>
+
+    <form class="panel" data-ask-form>
+        <h2>AI পরীক্ষা</h2>
+        <label for="dash-topic">বিষয়</label>
+        <select id="dash-topic" name="topic">
+            {% for key, value in topics.items() %}
+            <option value="{{ key }}">{{ value }}</option>
+            {% endfor %}
+        </select>
+        <label for="dash-question">প্রশ্ন</label>
+        <textarea id="dash-question" name="question" placeholder="কৃষকের প্রশ্ন লিখুন"></textarea>
+        <button class="button primary full" type="submit">পরীক্ষা করুন</button>
+    </form>
+
+    <section class="result" data-result hidden>
+        <h2>সর্বশেষ উত্তর</h2>
+        <p class="question" data-question></p>
+        <p class="answer" data-answer></p>
+        <audio controls data-audio></audio>
+    </section>
+
+    <section class="history">
+        <h2>আগের প্রশ্ন</h2>
+        {% if history %}
+            {% for item in history %}
+            <article>
+                <span>{{ item.topic }}</span>
+                <strong>{{ item.question }}</strong>
+                <p>{{ item.answer }}</p>
+            </article>
+            {% endfor %}
+        {% else %}
+            <p class="muted">এখনও কোনো প্রশ্ন নেই।</p>
+        {% endif %}
+    </section>
+</section>
+{% endblock %}

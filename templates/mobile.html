@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% set title = "কৃষক বার্তা মোবাইল অ্যাপ" %}
+
+{% block content %}
+<section class="phone-wrap">
+    <div class="phone">
+        <p class="greeting">আস্সালামু আলাইকুম</p>
+        <h1>প্রশ্ন করুন</h1>
+
+        <form data-voice-form>
+            <label for="mobile-topic">বিষয়</label>
+            <select id="mobile-topic" name="topic">
+                {% for key, value in topics.items() %}
+                <option value="{{ key }}">{{ value }}</option>
+                {% endfor %}
+            </select>
+
+            <button class="mic" type="button" data-record-button>
+                <span>●</span>
+                <strong data-record-label>মাইক চাপুন</strong>
+            </button>
+
+            <textarea name="question" placeholder="অথবা প্রশ্ন লিখুন"></textarea>
+            <button class="button primary full" type="submit">পাঠান</button>
+        </form>
+
+        <section class="result compact" data-result hidden>
+            <p class="question" data-question></p>
+            <p class="answer" data-answer></p>
+            <audio controls autoplay data-audio></audio>
+        </section>
+    </div>
+</section>
+{% endblock %}
